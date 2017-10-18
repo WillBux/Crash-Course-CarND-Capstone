@@ -28,26 +28,82 @@ class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
 
+        # Class storage
+        self.base_wp      = None        # Let's store the base waypoints here
+        self.current_pose = None        # Current Position (full)
+        self.current_x    = None        # Current X Position
+        self.current_y    = None        # Current Y Position
+        self.current_z    = None        # Current Z Position
+        self.wp_dist      = None        # List of (dist, waypoint) tuples
+
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
-        # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-
+        # TODO: Enabling traffic/obstacles later on
+        # rospy.Subscriber('/traffic_waypoint', Traffic, self.traffic_cb)
+        # rospy.Subscriber('/obstacle_waypoint',Obstacle, self.obstacle_cb)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
-        # TODO: Add other member variables you need below
+        rate = rospy.rate(10)
+        while not rospy.is_shutdown():
+            self.finalize_wp()
+            rate.sleep()
 
-        rospy.spin()
-
+    # ============================================================
     def pose_cb(self, msg):
-        # TODO: Implement
-        pass
+        # Store the current coordinates in the class object
+        self.current_pose = msg
+        self.current_x = msg.pose.position.x
+        self.current_y = msg.pose.position.y
+        self.current_z = msg.pose.position.z
 
+        return
+
+    # ============================================================
     def waypoints_cb(self, waypoints):
-        # TODO: Implement
+        # Callback for base waypoints. Let's just store in class
+        self.base_wp = waypoints
+
+    # ============================================================
+    def wp_distances(self):
+        # Compute the distances to all base waypoints and store in class
+        wp_dist = []
+        xi = self.current_x
+        yi = self.current_y
+        zi = self.current_z
+        for wp in self.waypoints:
+            xj = wp.pose.pose.position.x
+            yj = wp.pose.pose.position.y
+            zj = wp.pose.pose.position.z
+
+            dij = math.sqrt( (xi-xj)**2 + (yi-yj)**2 + (zi-zj)**2 )
+
+            wp_dist.append((dij, wp))
+
+        self.wp_dist = sorted(wp_dist)
+
         pass
 
+    # ============================================================
+    def finalize_wp(self):
+        # Build 'final waypoints' message and publish
+        self.wp_distances()
+
+        # Construct a lane message
+        msg = Lane()
+        msg.header.frame_id = '/world'
+        msg.header.stamp = rospy.Time.now()
+
+        for i in range(LOOKAHEAD_WPS):
+            wpi = self.wp_disp[i][1]
+            msg.waypoints.append(wpi)
+
+        self.final_waypoints_pub.publist(msg)
+
+        pass
+
+    # ============================================================
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
         pass
