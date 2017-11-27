@@ -1,3 +1,5 @@
+from yaw_controller import YawController
+
 
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
@@ -5,10 +7,25 @@ ONE_MPH = 0.44704
 
 class Controller(object):
     def __init__(self, *args, **kwargs):
-        # TODO: Implement
+        # Let's start with basic YawController
+        self.YC = YawController(kwargs['wheel_base'],
+                                kwargs['steer_ratio'],
+                                kwargs['min_speed'],
+                                kwargs['max_lat_accel'],
+                                kwargs['max_steer_angle'])
+        
         pass
 
     def control(self, *args, **kwargs):
         # TODO: Change the arg, kwarg list to suit your needs
         # Return throttle, brake, steer
-        return 1., 0., 0.
+
+        steer = self.YC.get_steering(kwargs['lx_target'],
+                                     kwargs['az_target'],
+                                     kwargs['lx_current'])
+        throttle = 0.5
+        brake = 0.0
+        
+        print("THROTTLE = {}; BRAKE = {};  STEER = {}".format(throttle,brake,steer))
+        
+        return throttle, brake, steer
