@@ -1,3 +1,4 @@
+import rospy
 from yaw_controller import YawController
 
 
@@ -23,9 +24,9 @@ class Controller(object):
         steer = self.YC.get_steering(kwargs['lx_target'],
                                      kwargs['az_target'],
                                      kwargs['lx_current'])
-        throttle = 0.5
+        throttle = 1.0
         brake = 0.0
         
-        print("THROTTLE = {}; BRAKE = {};  STEER = {}".format(throttle,brake,steer))
+        rospy.loginfo("THROTTLE = {}; BRAKE = {};  STEER = {}".format(throttle,brake,steer))
         
         return throttle, brake, steer

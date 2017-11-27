@@ -61,9 +61,9 @@ class WaypointUpdater(object):
         return
 
     # ============================================================
-    def waypoints_cb(self, waypoints):
+    def waypoints_cb(self, wp):
         # Callback for base waypoints. Let's just store in class
-        self.base_wp = waypoints
+        self.base_wp = wp.waypoints
 
     # ============================================================
     def wp_distances(self):
@@ -85,12 +85,14 @@ class WaypointUpdater(object):
             self.wp_dist = sorted(wp_dist)
             return True
 
-        except:
+        except Exception as e:
+            rospy.logwarn(e.message)
             return False
 
     # ============================================================
     def finalize_wp(self):
         # Build 'final waypoints' message and publish
+
         success = self.wp_distances()
         if not success:
             return
@@ -101,10 +103,10 @@ class WaypointUpdater(object):
         msg.header.stamp = rospy.Time.now()
 
         for i in range(LOOKAHEAD_WPS):
-            wpi = self.wp_disp[i][1]
+            wpi = self.wp_dist[i][1]
             msg.waypoints.append(wpi)
 
-        self.final_waypoints_pub.publist(msg)
+        self.final_waypoints_pub.publish(msg)
 
         pass
 
