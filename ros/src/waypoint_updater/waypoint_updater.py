@@ -45,7 +45,7 @@ class WaypointUpdater(object):
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
-        rate = rospy.rate(10)
+        rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             self.finalize_wp()
             rate.sleep()
@@ -68,27 +68,32 @@ class WaypointUpdater(object):
     # ============================================================
     def wp_distances(self):
         # Compute the distances to all base waypoints and store in class
-        wp_dist = []
-        xi = self.current_x
-        yi = self.current_y
-        zi = self.current_z
-        for wp in self.waypoints:
-            xj = wp.pose.pose.position.x
-            yj = wp.pose.pose.position.y
-            zj = wp.pose.pose.position.z
+        try:
+            wp_dist = []
+            xi = self.current_x
+            yi = self.current_y
+            zi = self.current_z
+            for wp in self.base_wp:
+                xj = wp.pose.pose.position.x
+                yj = wp.pose.pose.position.y
+                zj = wp.pose.pose.position.z
 
-            dij = math.sqrt( (xi-xj)**2 + (yi-yj)**2 + (zi-zj)**2 )
+                dij = math.sqrt( (xi-xj)**2 + (yi-yj)**2 + (zi-zj)**2 )
 
-            wp_dist.append((dij, wp))
+                wp_dist.append((dij, wp))
 
-        self.wp_dist = sorted(wp_dist)
+            self.wp_dist = sorted(wp_dist)
+            return True
 
-        pass
+        except:
+            return False
 
     # ============================================================
     def finalize_wp(self):
         # Build 'final waypoints' message and publish
-        self.wp_distances()
+        success = self.wp_distances()
+        if not success:
+            return
 
         # Construct a lane message
         msg = Lane()

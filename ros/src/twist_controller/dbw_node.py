@@ -46,6 +46,10 @@ class DBWNode(object):
         max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
         max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
 
+        self.dbw_status = True
+        self.twist_cmd = None
+        self.current_vel = None
+
         self.steer_pub = rospy.Publisher('/vehicle/steering_cmd',
                                          SteeringCmd, queue_size=1)
         self.throttle_pub = rospy.Publisher('/vehicle/throttle_cmd',
@@ -54,12 +58,28 @@ class DBWNode(object):
                                          BrakeCmd, queue_size=1)
 
         # TODO: Create `TwistController` object
-        # self.controller = TwistController(<Arguments you wish to provide>)
+        self.controller = Controller()
 
         # TODO: Subscribe to all the topics you need to
+        rospy.Subscriber('/current_velocity', TwistStamped, self.curr_vel_cb, queue_size=1)
+        rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb, queue_size=1)
+        rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_cb, queue_size=1)
 
         self.loop()
 
+    # ============================================================
+    def dbw_cb(self, msg):
+        self.dbw_status = msg
+
+    # ============================================================
+    def curr_vel_cb(self, msg):
+        self.current_vel = msg
+
+    # ============================================================
+    def twist_cmd_cb(self, msg):
+        self.twist_cmd = msg
+
+    # ============================================================
     def loop(self):
         rate = rospy.Rate(50) # 50Hz
         while not rospy.is_shutdown():
@@ -72,8 +92,15 @@ class DBWNode(object):
             #                                                     <any other argument you need>)
             # if <dbw is enabled>:
             #   self.publish(throttle, brake, steer)
+
+            # For now, let's start with constant throttle, no brake or steer
+            if self.dbw_status:
+                throttle, brake, steering = self.controller.control()
+                self.publish(throttle, brake, steering)
+
             rate.sleep()
 
+    # ============================================================
     def publish(self, throttle, brake, steer):
         tcmd = ThrottleCmd()
         tcmd.enable = True
