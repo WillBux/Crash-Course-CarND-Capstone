@@ -21,33 +21,114 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
+LOOKAHEAD_WPS = 50 # Number of waypoints we will publish. You can change this number
 
 
 class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
 
+        # Class storage
+        self.base_wp      = None        # Let's store the base waypoints here
+        self.current_pose = None        # Current Position (full)
+        self.current_x    = None        # Current X Position
+        self.current_y    = None        # Current Y Position
+        self.current_z    = None        # Current Z Position
+        self.wp_dist      = None        # List of (dist, waypoint) tuples
+
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
-        # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-
+        # TODO: Enabling traffic/obstacles later on
+        # rospy.Subscriber('/traffic_waypoint', Traffic, self.traffic_cb)
+        # rospy.Subscriber('/obstacle_waypoint',Obstacle, self.obstacle_cb)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
-        # TODO: Add other member variables you need below
+        rate = rospy.Rate(10)
+        while not rospy.is_shutdown():
+            self.finalize_wp()
+            rate.sleep()
 
-        rospy.spin()
-
+    # ============================================================
     def pose_cb(self, msg):
-        # TODO: Implement
+        # Store the current coordinates in the class object
+        self.current_pose = msg
+        self.current_x = msg.pose.position.x
+        self.current_y = msg.pose.position.y
+        self.current_z = msg.pose.position.z
+
+        return
+
+    # ============================================================
+    def waypoints_cb(self, wp):
+        # Callback for base waypoints. Let's just store in class
+        self.base_wp = wp.waypoints
+        rospy.logwarn("Base waypoints updated: {}".format(len(self.base_wp)))
+
+    # ============================================================
+    def wp_distances(self):
+        # Compute the distances to all base waypoints and store in class
+        try:
+            wp_dist = []
+            xi = self.current_x
+            yi = self.current_y
+            zi = self.current_z
+            count = 0
+            max_dist = 1.0e8
+            for i,wp in enumerate(self.base_wp):
+                xj = wp.pose.pose.position.x
+                yj = wp.pose.pose.position.y
+                zj = wp.pose.pose.position.z
+
+                dij = math.sqrt( (xi-xj)**2 + (yi-yj)**2 + (zi-zj)**2 )
+
+                if dij < max_dist:
+                    max_dist = dij
+                    next_wp = i
+
+                wp_dist.append((dij, wp, count))
+                count += 1
+
+            self.wp_dist = sorted(wp_dist)
+            self.next_wp = next_wp
+            return True
+
+        except Exception as e:
+            rospy.logwarn(e.message)
+            return False
+
+    # ============================================================
+    def finalize_wp(self):
+        # Build 'final waypoints' message and publish
+
+        success = self.wp_distances()
+        if not success:
+            return
+
+        # Construct a lane message
+        msg = Lane()
+        msg.header.frame_id = '/world'
+        msg.header.stamp = rospy.Time.now()
+
+        max_vel = 40.0
+
+        for i in range(LOOKAHEAD_WPS):
+            wpi = self.wp_dist[i][1]
+            if i == 0:
+                rospy.loginfo("LOOKAHEAD: {} {} {}".format(i,
+                                                           self.wp_dist[i][2],
+                                                           self.wp_dist[i][0]))
+            
+            # Do we need deepcopy here??
+            wpi.twist.twist.linear.x = max_vel
+            msg.waypoints.append(wpi)
+
+        self.final_waypoints_pub.publish(msg)
+
         pass
 
-    def waypoints_cb(self, waypoints):
-        # TODO: Implement
-        pass
-
+    # ============================================================
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
         pass
