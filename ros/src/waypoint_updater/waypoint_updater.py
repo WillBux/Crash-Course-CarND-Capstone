@@ -21,7 +21,7 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
+LOOKAHEAD_WPS = 50 # Number of waypoints we will publish. You can change this number
 
 
 class WaypointUpdater(object):
@@ -64,6 +64,7 @@ class WaypointUpdater(object):
     def waypoints_cb(self, wp):
         # Callback for base waypoints. Let's just store in class
         self.base_wp = wp.waypoints
+        rospy.logwarn("Base waypoints updated: {}".format(len(self.base_wp)))
 
     # ============================================================
     def wp_distances(self):
@@ -73,16 +74,24 @@ class WaypointUpdater(object):
             xi = self.current_x
             yi = self.current_y
             zi = self.current_z
-            for wp in self.base_wp:
+            count = 0
+            max_dist = 1.0e8
+            for i,wp in enumerate(self.base_wp):
                 xj = wp.pose.pose.position.x
                 yj = wp.pose.pose.position.y
                 zj = wp.pose.pose.position.z
 
                 dij = math.sqrt( (xi-xj)**2 + (yi-yj)**2 + (zi-zj)**2 )
 
-                wp_dist.append((dij, wp))
+                if dij < max_dist:
+                    max_dist = dij
+                    next_wp = i
+
+                wp_dist.append((dij, wp, count))
+                count += 1
 
             self.wp_dist = sorted(wp_dist)
+            self.next_wp = next_wp
             return True
 
         except Exception as e:
@@ -102,8 +111,17 @@ class WaypointUpdater(object):
         msg.header.frame_id = '/world'
         msg.header.stamp = rospy.Time.now()
 
+        max_vel = 40.0
+
         for i in range(LOOKAHEAD_WPS):
             wpi = self.wp_dist[i][1]
+            if i == 0:
+                rospy.loginfo("LOOKAHEAD: {} {} {}".format(i,
+                                                           self.wp_dist[i][2],
+                                                           self.wp_dist[i][0]))
+            
+            # Do we need deepcopy here??
+            wpi.twist.twist.linear.x = max_vel
             msg.waypoints.append(wpi)
 
         self.final_waypoints_pub.publish(msg)

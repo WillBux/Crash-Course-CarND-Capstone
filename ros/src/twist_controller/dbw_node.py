@@ -46,7 +46,7 @@ class DBWNode(object):
         max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
         max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
 
-        self.dbw_status = True
+        self.dbw_status = False
         self.twist_cmd = None
         self.lx_target = 0.0
         self.az_target = 0.0
@@ -80,7 +80,7 @@ class DBWNode(object):
     # ============================================================
     def dbw_cb(self, msg):
         self.dbw_status = msg
-        print("DBW STATUS = ",msg)
+        rospy.loginfo("DBW STATUS = {}".format(msg))
         pass
 
     # ============================================================
@@ -99,17 +99,7 @@ class DBWNode(object):
     def loop(self):
         rate = rospy.Rate(50) # 50Hz
         while not rospy.is_shutdown():
-            # TODO: Get predicted throttle, brake, and steering using `twist_controller`
-            # You should only publish the control commands if dbw is enabled
-            # throttle, brake, steering = self.controller.control(<proposed linear velocity>,
-            #                                                     <proposed angular velocity>,
-            #                                                     <current linear velocity>,
-            #                                                     <dbw status>,
-            #                                                     <any other argument you need>)
-            # if <dbw is enabled>:
-            #   self.publish(throttle, brake, steer)
 
-            # For now, let's start with constant throttle, no brake or steer
             params = {'lx_target': self.lx_target,
                       'az_target': self.az_target,
                       'lx_current': self.lx_current,
