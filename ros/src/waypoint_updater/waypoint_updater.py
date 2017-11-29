@@ -59,7 +59,9 @@ class WaypointUpdater(object):
     # ============================================================
     def pose_cb(self, msg):
         # Store the current coordinates in the class object
-        self.current_pose = msg
+        self.current_pose = msg.pose
+
+        # Currently these vars are not used
         self.current_x = msg.pose.position.x
         self.current_y = msg.pose.position.y
         self.current_z = msg.pose.position.z
