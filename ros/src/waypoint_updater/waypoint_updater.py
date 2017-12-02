@@ -21,7 +21,7 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 50 # Number of waypoints we will publish. You can change this number
+LOOKAHEAD_WPS = 100 # Number of waypoints we will publish. You can change this number
 
 
 class WaypointUpdater(object):
@@ -95,7 +95,7 @@ class WaypointUpdater(object):
             return True
 
         except Exception as e:
-            rospy.logwarn(e.message)
+            #rospy.logwarn(e.message)
             return False
 
     # ============================================================
@@ -106,23 +106,22 @@ class WaypointUpdater(object):
         if not success:
             return
 
+        max_vel = 11.0
+        
         # Construct a lane message
         msg = Lane()
         msg.header.frame_id = '/world'
         msg.header.stamp = rospy.Time.now()
 
-        max_vel = 40.0
-
-        for i in range(LOOKAHEAD_WPS):
-            wpi = self.wp_dist[i][1]
-            if i == 0:
-                rospy.loginfo("LOOKAHEAD: {} {} {}".format(i,
-                                                           self.wp_dist[i][2],
-                                                           self.wp_dist[i][0]))
-            
-            # Do we need deepcopy here??
-            wpi.twist.twist.linear.x = max_vel
-            msg.waypoints.append(wpi)
+        n = 0
+        i = 0
+        while n < LOOKAHEAD_WPS:
+            i += 1
+            if self.wp_dist[i][2] >= self.wp_dist[0][2]:
+                wpi = self.wp_dist[i][1]
+                wpi.twist.twist.linear.x = max_vel
+                msg.waypoints.append(wpi)
+                n += 1
 
         self.final_waypoints_pub.publish(msg)
 
