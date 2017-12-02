@@ -183,6 +183,9 @@ class TLDetector(object):
         stop_distance = None
         stop_idx = None
 
+        if self.waypoints is None:
+            return stop_idx, stop_distance
+
         # Car position
         xi = self.waypoints[pose].pose.pose.position.x
         yi = self.waypoints[pose].pose.pose.position.y
@@ -223,9 +226,10 @@ class TLDetector(object):
             light_positions.append((xl, yl))
 
         light_idx, light_distance = self.get_closest(car_position, light_positions)
-        if light_distance > self.sight_distance:
-            return -1, TrafficLight.UNKNOWN
 
+        if self.stop_waypoints is None or light_idx is None or light_distance > self.sight_distance:
+            return -1, TrafficLight.UNKNOWN
+        
         # Waypoints associated with stop lines and lights
         stop_wp = self.stop_waypoints[light_idx]
         light_wp = stop_wp + 30
@@ -236,7 +240,9 @@ class TLDetector(object):
 
         state = self.get_light_state(self.lights[light_idx])
 
-        rospy.loginfo("NEXT STOP WP = {} STOP_DISTANCE = {} CARPOS = {}".format(stop_wp, light_distance, car_position))
+        # For testing, let's assume the state is red for now
+        state = TrafficLight.RED
+        #rospy.loginfo("NEXT STOP WP = {} STOP_DISTANCE = {} CARPOS = {}".format(stop_wp, light_distance, car_position))
 
         return stop_wp, state
 
