@@ -37,6 +37,8 @@ class WaypointUpdater(object):
         self.current_z    = None        # Current Z Position
         self.wp_dist      = None        # List of (dist, waypoint) tuples
         self.wp_vels      = None        # List of velocity targets for each wp
+        self.wp_last      = None        # List of waypoints publishes last time (to limit search)
+        self.wp_num       = 0           # Number of base waypoints
         self.max_vel      = 17.8        # Maximum speed on the track [meters/sec] (40 Mph)
         self.stop_dist    = 50          # Stopping distance (from max_vel to 0)
 
@@ -68,17 +70,17 @@ class WaypointUpdater(object):
     def waypoints_cb(self, wp):
         # Callback for base waypoints. Let's just store in class
         self.base_wp = wp.waypoints
+        self.wp_num = len(wp.waypoints)
         self.set_max_vel()
         pass
 
     # ============================================================
     def set_max_vel(self):
         # Assign maximum velocity to all waypoints
-        num_wp = len(self.base_wp)
-        self.wp_vels = [self.max_vel for i in range(num_wp)]
+        self.wp_vels = [self.max_vel for i in range(self.wp_num)]
 
         # Stop at the last waypoint
-        self.set_stop_vel(num_wp-1)
+        self.set_stop_vel(self.wp_num-1)
 
         pass
 
@@ -119,9 +121,9 @@ class WaypointUpdater(object):
             return
 
         # Reduce the velocity of waypoints leading up to stop_wp
+        rospy.loginfo("STOP SIGNAL = {}".format(stop_wp))
         self.set_stop_vel(stop_wp)
 
-        #rospy.loginfo("STOPPING AT = {}".format(stop_wp))
         pass
 
     def obstacle_cb(self, msg):
@@ -137,25 +139,29 @@ class WaypointUpdater(object):
             xi = self.current_x
             yi = self.current_y
             zi = self.current_z
-            count = 0
-            max_dist = 1.0e8
-            for i,wp in enumerate(self.base_wp):
+
+            # Let's limit the search in the last published range (if available)
+            if self.wp_last is None:
+                search_range = [i for i in range(self.wp_num)]
+            else:
+                search_range = self.wp_last
+
+            for i in search_range:
+                wp = self.base_wp[i]
                 xj = wp.pose.pose.position.x
                 yj = wp.pose.pose.position.y
                 zj = wp.pose.pose.position.z
 
                 dij = math.sqrt( (xi-xj)**2 + (yi-yj)**2 + (zi-zj)**2 )
 
-                if dij < max_dist:
-                    max_dist = dij
-                    next_wp = i
-
-                wp_dist.append((dij, wp, count))
-                count += 1
+                wp_dist.append((dij, wp, i))
 
             self.wp_dist = sorted(wp_dist)
-            self.next_wp = next_wp
-            return True
+
+            if len(self.wp_dist) > 0:
+                return True
+            else:
+                return False
 
         except Exception as e:
             #rospy.logwarn(e.message)
@@ -176,38 +182,23 @@ class WaypointUpdater(object):
         msg.header.frame_id = '/world'
         msg.header.stamp = rospy.Time.now()
 
-        n = 0
-        i = 0
-
         # Select a subset of waypoints and add to message
-        while n < LOOKAHEAD_WPS:
-            i += 1
-            # Select waypoints ahead of car position [closest wp]
-            if self.wp_dist[i][2] >= self.wp_dist[0][2]:
-                wpi = self.wp_dist[i][1]
+        self.wp_last = []
 
-                # Assign maximum speed
-                wpi.twist.twist.linear.x = self.wp_vels[self.wp_dist[i][2]]
-                msg.waypoints.append(wpi)
-                n += 1
+        # Add waypoints starting with the closest and incrementing thereon
+        i = 0
+        n = self.wp_dist[0][2]
+        while i < LOOKAHEAD_WPS and n < self.wp_num:
+            wpn = self.base_wp[n]
+            wpn.twist.twist.linear.x = self.wp_vels[n]
+            msg.waypoints.append(wpn)
+            self.wp_last.append(n)
+            i += 1
+            n += 1
 
         self.final_waypoints_pub.publish(msg)
 
         pass
-
-    #def get_waypoint_velocity(self, waypoint):
-    #    return waypoint.twist.twist.linear.x
-    #
-    #def set_waypoint_velocity(self, waypoints, waypoint, velocity):
-    #    waypoints[waypoint].twist.twist.linear.x = velocity
-    #
-    #def distance(self, waypoints, wp1, wp2):
-    #    dist = 0
-    #    dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
-    #    for i in range(wp1, wp2+1):
-    #        dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
-    #        wp1 = i
-    #    return dist
 
 
 if __name__ == '__main__':
