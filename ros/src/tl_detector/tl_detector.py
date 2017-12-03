@@ -12,7 +12,7 @@ import cv2
 import yaml
 from math import sqrt
 
-STATE_COUNT_THRESHOLD = 3
+STATE_COUNT_THRESHOLD = 20
 
 class TLDetector(object):
     def __init__(self):
@@ -52,6 +52,9 @@ class TLDetector(object):
 
         self.sight_distance = 100    # Let's say we can only see some distance ahead
         self.stop_waypoints = []
+        self.last_red_time = None
+        self.save_images = True
+        self.image_number = 0
 
         rospy.spin()
 
@@ -173,6 +176,12 @@ class TLDetector(object):
             return False
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        #rospy.loginfo("CAMERA IMAGE = {}".format(cv_image.shape))
+
+        if self.save_images:
+            filnam = "cam_img-{:04d}.png".format(self.image_number)
+            cv2.imwrite(filnam, cv_image)
+            self.image_number += 1
 
         #Get classification
         return self.light_classifier.get_classification(cv_image)
@@ -232,7 +241,7 @@ class TLDetector(object):
         
         # Waypoints associated with stop lines and lights
         stop_wp = self.stop_waypoints[light_idx]
-        light_wp = stop_wp + 30
+        light_wp = stop_wp + 15
 
         # Do not classify if we have passed the light
         if light_wp < car_position:
@@ -242,7 +251,21 @@ class TLDetector(object):
 
         # For testing, let's assume the state is red for now
         state = TrafficLight.RED
-        #rospy.loginfo("NEXT STOP WP = {} STOP_DISTANCE = {} CARPOS = {}".format(stop_wp, light_distance, car_position))
+
+        # Store the time when RED light is first detected
+        if self.last_state != TrafficLight.RED:
+            self.last_red_time = rospy.get_time()
+
+        # Time elapsed since RED was first detected
+        elapsed = rospy.get_time() - self.last_red_time
+
+        # If 5 seconds have passed, let's turn GREEN
+        if elapsed > 15.0:
+            state = TrafficLight.GREEN
+            rospy.loginfo("GREEN @ {}".format(stop_wp))
+        else:
+            rospy.loginfo("RED   @ {}".format(stop_wp))
+
 
         return stop_wp, state
 
