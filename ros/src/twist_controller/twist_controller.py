@@ -17,7 +17,7 @@ class Controller(object):
 
         self.last_throttle = 0.0
         self.last_brake = 0.0
-        self.last_steering = 0.0
+        self.last_steer = 0.0
         
         pass
 
@@ -38,24 +38,10 @@ class Controller(object):
             steer = self.last_steer
 
         # Override for now with constant values
-        throttle = 0.75
+        throttle = 0.025*1000
         brake = 0.0
 
-        # Slow down when turning
-        if abs(steer) > 0.1 and lx_current > 5.0:
-            rospy.loginfo("Slowing.. {} {}".format(steer,lx_current))
-            throttle = 0.5
-
-        # Stop accelerating if too fast on a curve
-        if abs(steer) > 0.20 and lx_current > 5.0:
-            rospy.loginfo("Off Pedal.. {} {}".format(steer,lx_current))
-            throttle = 0.0
-
-        # Slow down further if too fast
-        if abs(steer) > 0.25 and lx_current > 10.0:
-            rospy.loginfo("Braking!! {} {}".format(steer,lx_current))
-            brake = 1.0
-
+        # PID to be implemented (for stopping and starting)
 
         self.last_throttle = throttle
         self.last_brake = brake
