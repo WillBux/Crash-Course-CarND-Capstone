@@ -24,17 +24,15 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 
 LOOKAHEAD_WPS = 100 # Number of waypoints we will publish. You can change this number
 
-
 class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
 
         # Class storage
-        self.base_wp      = None        # Let's store the base waypoints here
-        self.current_pose = None        # Current Position (full)
-        self.current_x    = None        # Current X Position
-        self.current_y    = None        # Current Y Position
-        self.current_z    = None        # Current Z Position
+        self.base_wp = None        # Let's store the base waypoints here
+        self.current_position = None        # Current Position (full)
+        self.next_wp_index = None
+        self.next_wp_distance = 0.0
         self.wp_dist      = None        # List of (dist, waypoint) tuples
         self.wp_vels      = None        # List of velocity targets for each wp
         self.wp_last      = None        # List of waypoints publishes last time (to limit search)
@@ -53,22 +51,18 @@ class WaypointUpdater(object):
 
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
-            self.finalize_wp()
+            self.publish_next_wps()
             rate.sleep()
 
-    # ============================================================
     def pose_cb(self, msg):
         # Store the current coordinates in the class object
-        self.current_pose = msg.pose
+        self.current_position = msg.pose.position
 
-        # Currently these vars are not used
-        self.current_x = msg.pose.position.x
-        self.current_y = msg.pose.position.y
-        self.current_z = msg.pose.position.z
+        if not self.base_wp:
+            return
 
-        return
+        self.calc_next_wp_index()
 
-    # ============================================================
     def waypoints_cb(self, wp):
         # Callback for base waypoints. Let's just store in class
         self.base_wp = wp.waypoints
@@ -131,70 +125,54 @@ class WaypointUpdater(object):
         pass
 
 
-    # ============================================================
-    def wp_distances(self):
-        # Compute the distances to all base waypoints and store in class
-        try:
-            wp_dist = []
-            xi = self.current_x
-            yi = self.current_y
-            zi = self.current_z
+    def dist(self, a, b):
+        return math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
 
-            # Let's limit the search in the last published range (if available)
-            if self.wp_last is None:
-                search_range = [i for i in range(self.wp_num)]
-            else:
-                search_range = self.wp_last
+    def calc_next_wp_index(self):
+        if not self.next_wp_index:
+            self.next_wp_distance, self.next_wp_index = min([(self.dist(self.current_position, wp.pose.pose.position), i)
+                                                             for i, wp in enumerate(self.base_wp)])
+        else:
+            self.next_wp_distance = self.dist(self.current_position, self.base_wp[self.next_wp_index].pose.pose.position)
 
-            for i in search_range:
-                wp = self.base_wp[i]
-                xj = wp.pose.pose.position.x
-                yj = wp.pose.pose.position.y
-                zj = wp.pose.pose.position.z
+            # search for next best wp in next LOOKAHEAD_WPS points
+            # distance = 0.0
+            for i in range(self.next_wp_index + 1, (self.next_wp_index + LOOKAHEAD_WPS)):
+                index = i % len(self.base_wp)
+                wp = self.base_wp[index]
+                distance = self.dist(self.current_position, wp.pose.pose.position)
+                if distance < self.next_wp_distance:
+                    self.next_wp_index = index
+                    self.next_wp_distance = distance
+                    break
 
-                dij = math.sqrt( (xi-xj)**2 + (yi-yj)**2 + (zi-zj)**2 )
+    def next_wps(self):
+        rospy.loginfo("NEXT POINT: {} {}".format(self.next_wp_index, self.next_wp_distance))
 
-                wp_dist.append((dij, wp, i))
+        next_wps = [self.base_wp[self.next_wp_index]]
 
-            self.wp_dist = sorted(wp_dist)
+        for i in range(self.next_wp_index + 1, (self.next_wp_index + LOOKAHEAD_WPS)):
+            index = i % len(self.base_wp)
+            next_wps.append(self.base_wp[index])
 
-            if len(self.wp_dist) > 0:
-                return True
-            else:
-                return False
+        return next_wps
 
-        except Exception as e:
-            #rospy.logwarn(e.message)
-            return False
-
-    # ============================================================
-    def finalize_wp(self):
-        # Build 'final waypoints' message and publish
-
-        success = self.wp_distances()
-        if not success:
+    def publish_next_wps(self):
+        if not self.base_wp or not self.next_wp_index:
             return
 
-        max_vel = 11.0
+        next_wps = self.next_wps()
+
+        rospy.loginfo("PUBLISHING NEXT WPS: {} {} {}".format(self.next_wp_index, self.next_wp_distance, len(next_wps)))
 
         # Construct a lane message
         msg = Lane()
         msg.header.frame_id = '/world'
         msg.header.stamp = rospy.Time.now()
 
-        # Select a subset of waypoints and add to message
-        self.wp_last = []
-
-        # Add waypoints starting with the closest and incrementing thereon
-        i = 0
-        n = self.wp_dist[0][2]
-        while i < LOOKAHEAD_WPS and n < self.wp_num:
-            wpn = self.base_wp[n]
-            wpn.twist.twist.linear.x = self.wp_vels[n]
-            msg.waypoints.append(wpn)
-            self.wp_last.append(n)
-            i += 1
-            n += 1
+        for wp in next_wps:
+            wp.twist.twist.linear.x = MAX_VELOCITY
+            msg.waypoints.append(wp)
 
         self.final_waypoints_pub.publish(msg)
 
