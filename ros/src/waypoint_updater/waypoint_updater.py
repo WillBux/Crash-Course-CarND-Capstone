@@ -3,6 +3,7 @@
 import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
+from std_msgs.msg import Int32
 
 import math
 
@@ -35,12 +36,17 @@ class WaypointUpdater(object):
         self.current_y    = None        # Current Y Position
         self.current_z    = None        # Current Z Position
         self.wp_dist      = None        # List of (dist, waypoint) tuples
+        self.wp_vels      = None        # List of velocity targets for each wp
+        self.wp_last      = None        # List of waypoints publishes last time (to limit search)
+        self.wp_num       = 0           # Number of base waypoints
+        self.max_vel      = 17.8        # Maximum speed on the track [meters/sec] (40 Mph)
+        self.stop_dist    = 100         # Stopping distance (from max_vel to 0)
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
         # TODO: Enabling traffic/obstacles later on
-        # rospy.Subscriber('/traffic_waypoint', Traffic, self.traffic_cb)
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
         # rospy.Subscriber('/obstacle_waypoint',Obstacle, self.obstacle_cb)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
@@ -64,7 +70,64 @@ class WaypointUpdater(object):
     def waypoints_cb(self, wp):
         # Callback for base waypoints. Let's just store in class
         self.base_wp = wp.waypoints
-        rospy.logwarn("Base waypoints updated: {}".format(len(self.base_wp)))
+        self.wp_num = len(wp.waypoints)
+        self.set_max_vel()
+        pass
+
+    # ============================================================
+    def set_max_vel(self):
+        # Assign maximum velocity to all waypoints
+        self.wp_vels = [self.max_vel for i in range(self.wp_num)]
+
+        # Stop at the last waypoint
+        self.set_stop_vel(self.wp_num-1)
+
+        pass
+
+    # ============================================================
+    def set_stop_vel(self, stop):
+        # Stop at the stopping point
+        self.wp_vels[stop] = 0
+        xi = self.base_wp[stop].pose.pose.position.x
+        yi = self.base_wp[stop].pose.pose.position.y
+        zi = self.base_wp[stop].pose.pose.position.z
+
+        ramp_distance = True
+        n = 0
+        while ramp_distance:
+            n += 1
+            xj = self.base_wp[stop-n].pose.pose.position.x
+            yj = self.base_wp[stop-n].pose.pose.position.y
+            zj = self.base_wp[stop-n].pose.pose.position.z
+
+            dij = math.sqrt( (xi-xj)**2 + (yi-yj)**2 + (zi-zj)**2 )
+
+            ramp_vel = self.max_vel*dij/self.stop_dist
+
+            self.wp_vels[stop-n] = min(self.max_vel, ramp_vel)
+
+            # If far enough away, stop ramping up
+            if dij > self.stop_dist:
+                ramp_distance = False
+
+    # ============================================================
+    def traffic_cb(self, msg):
+        # TODO: Callback for /traffic_waypoint message. Implement
+        stop_wp = msg.data
+        if stop_wp < 0:
+            # Reset all speeds to maximum velocity
+            self.set_max_vel()
+            return
+
+        # Reduce the velocity of waypoints leading up to stop_wp
+        self.set_stop_vel(stop_wp)
+
+        pass
+
+    def obstacle_cb(self, msg):
+        # TODO: Callback for /obstacle_waypoint message. We will implement it later
+        pass
+
 
     # ============================================================
     def wp_distances(self):
@@ -74,25 +137,29 @@ class WaypointUpdater(object):
             xi = self.current_x
             yi = self.current_y
             zi = self.current_z
-            count = 0
-            max_dist = 1.0e8
-            for i,wp in enumerate(self.base_wp):
+
+            # Let's limit the search in the last published range (if available)
+            if self.wp_last is None:
+                search_range = [i for i in range(self.wp_num)]
+            else:
+                search_range = self.wp_last
+
+            for i in search_range:
+                wp = self.base_wp[i]
                 xj = wp.pose.pose.position.x
                 yj = wp.pose.pose.position.y
                 zj = wp.pose.pose.position.z
 
                 dij = math.sqrt( (xi-xj)**2 + (yi-yj)**2 + (zi-zj)**2 )
 
-                if dij < max_dist:
-                    max_dist = dij
-                    next_wp = i
-
-                wp_dist.append((dij, wp, count))
-                count += 1
+                wp_dist.append((dij, wp, i))
 
             self.wp_dist = sorted(wp_dist)
-            self.next_wp = next_wp
-            return True
+
+            if len(self.wp_dist) > 0:
+                return True
+            else:
+                return False
 
         except Exception as e:
             #rospy.logwarn(e.message)
@@ -107,48 +174,29 @@ class WaypointUpdater(object):
             return
 
         max_vel = 11.0
-        
+
         # Construct a lane message
         msg = Lane()
         msg.header.frame_id = '/world'
         msg.header.stamp = rospy.Time.now()
 
-        n = 0
+        # Select a subset of waypoints and add to message
+        self.wp_last = []
+
+        # Add waypoints starting with the closest and incrementing thereon
         i = 0
-        while n < LOOKAHEAD_WPS:
+        n = self.wp_dist[0][2]
+        while i < LOOKAHEAD_WPS and n < self.wp_num:
+            wpn = self.base_wp[n]
+            wpn.twist.twist.linear.x = self.wp_vels[n]
+            msg.waypoints.append(wpn)
+            self.wp_last.append(n)
             i += 1
-            if self.wp_dist[i][2] >= self.wp_dist[0][2]:
-                wpi = self.wp_dist[i][1]
-                wpi.twist.twist.linear.x = max_vel
-                msg.waypoints.append(wpi)
-                n += 1
+            n += 1
 
         self.final_waypoints_pub.publish(msg)
 
         pass
-
-    # ============================================================
-    def traffic_cb(self, msg):
-        # TODO: Callback for /traffic_waypoint message. Implement
-        pass
-
-    def obstacle_cb(self, msg):
-        # TODO: Callback for /obstacle_waypoint message. We will implement it later
-        pass
-
-    def get_waypoint_velocity(self, waypoint):
-        return waypoint.twist.twist.linear.x
-
-    def set_waypoint_velocity(self, waypoints, waypoint, velocity):
-        waypoints[waypoint].twist.twist.linear.x = velocity
-
-    def distance(self, waypoints, wp1, wp2):
-        dist = 0
-        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
-        for i in range(wp1, wp2+1):
-            dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
-            wp1 = i
-        return dist
 
 
 if __name__ == '__main__':
