@@ -56,7 +56,7 @@ class Controller(object):
         elif lx_current == lx_target:
             brake = 0
             throttle = self.last_throttle
-            rospy.loginfo("Coasting: {} {}".format(throttle,brake))
+            #rospy.loginfo("Coasting: {} {}".format(throttle,brake))
 
         # Slow down if we are speeding up
         else:
