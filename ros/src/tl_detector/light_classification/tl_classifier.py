@@ -1,13 +1,20 @@
 from styx_msgs.msg import TrafficLight
-from keras.models import load_model
-from keras.preprocessing import image
 import numpy as np
 import cv2
+import rospy
+try:
+    from keras.models import load_model
+    from keras.preprocessing import image
+except ImportError:
+    rospy.logwarn("KERAS could not be imported!")
 
 class TLClassifier(object):
     def __init__(self):
         #TODO load classifier
-        self.model = load_model("model.h5")
+        try:
+            self.model = load_model("model.h5")
+        except:
+            rospy.logwarn("Classifier model could not be loaded")
         pass
 
     def get_classification(self, img):
@@ -21,10 +28,13 @@ class TLClassifier(object):
 
         """
         # TODO implement light color prediction
-        img = cv2.resize(img, (600, 800))
-        x = image.img_to_array(img)
-        x = np.expand_dims(x, axis=0)
-        pred = self.model.predict(x)
-        if pred:
-            return TrafficLight.Green
-        return TrafficLight.Red
+        try:
+            img = cv2.resize(img, (600, 800))
+            x = image.img_to_array(img)
+            x = np.expand_dims(x, axis=0)
+            pred = self.model.predict(x)
+            if pred:
+                return TrafficLight.Green
+            return TrafficLight.Red
+        except:
+            return TrafficLight.UNKNOWN
