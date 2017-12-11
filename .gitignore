@@ -5,3 +5,5 @@ devel
 
 profile.tmp
 /.idea/
+/log/
+*.DS_Store
