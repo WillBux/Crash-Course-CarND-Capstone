@@ -53,7 +53,11 @@ class DBWNode(object):
         self.current_vel = None
         self.lx_current = 0.0
         self.az_current = 0.0
-        
+
+        self.start_time = rospy.get_time()
+
+        self.logfile = "/home/student/PROJECT/Crash-Course-CarND-Capstone/data/dbw.log"
+
 
         self.steer_pub = rospy.Publisher('/vehicle/steering_cmd',
                                          SteeringCmd, queue_size=1)
@@ -74,6 +78,10 @@ class DBWNode(object):
         rospy.Subscriber('/current_velocity', TwistStamped, self.curr_vel_cb, queue_size=1)
         rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb, queue_size=1)
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_cb, queue_size=1)
+
+        # Open file to log commands
+        with open(self.logfile,"w") as f:
+            f.write("Time, Lx-target, Lx-actual, Az-target, Az-actual, Throttle, Brake, Steer\n")
 
         self.loop()
 
@@ -100,13 +108,21 @@ class DBWNode(object):
         rate = rospy.Rate(50) # 50Hz
         while not rospy.is_shutdown():
 
-            params = {'lx_target': self.lx_target,
+            params = {'lx_target': abs(self.lx_target),
                       'az_target': self.az_target,
                       'lx_current': self.lx_current,
                       'az_current': self.az_current }
-                      
+
             if self.dbw_status:
                 throttle, brake, steering = self.controller.control(**params)
+
+                # Log to file for processing
+                elapsed = rospy.get_time() - self.start_time
+                with open(self.logfile,"a") as f:
+                    f.write("{}, {}, {}, {}, {}, {}, {}, {}\n".format(
+                        elapsed, self.lx_target, self.lx_current,
+                        self.az_target, self.az_current, throttle, brake, steering))
+
                 self.publish(throttle, brake, steering)
 
             rate.sleep()
