@@ -33,8 +33,14 @@ class TLClassifier(object):
             x = image.img_to_array(img)
             x = np.expand_dims(x, axis=0)
             pred = self.model.predict(x)
-            if pred:
+            color = np.argmax(pred)
+            if color == 2:
                 return TrafficLight.Green
-            return TrafficLight.Red
+            if color == 1:
+                return TrafficLight.Yellow
+            if color == 2:
+                return TrafficLight.Red
+            else:
+                return TrafficLight.UNKNOWN
         except:
             return TrafficLight.UNKNOWN
