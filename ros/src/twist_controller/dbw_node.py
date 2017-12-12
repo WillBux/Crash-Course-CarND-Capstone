@@ -77,8 +77,8 @@ class DBWNode(object):
         rospy.Subscriber('/vehicle/steering_report', SteeringReport, self.current_angle_cb, queue_size=1)
 
         # Open file to log commands
-        with open(self.logfile,"w") as f:
-            f.write("Time, Lx-target, Lx-actual, Az-target, Az-actual, Throttle, Brake, Steer\n")
+        # with open(self.logfile,"w") as f:
+        #     f.write("Time, Lx-target, Lx-actual, Az-target, Az-actual, Throttle, Brake, Steer\n")
 
         self.loop()
 
