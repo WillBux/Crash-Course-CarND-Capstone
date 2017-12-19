@@ -92,10 +92,13 @@ class WaypointUpdater(object):
         yi = self.base_wp[stop].pose.pose.position.y
         zi = self.base_wp[stop].pose.pose.position.z
 
+
         ramp_distance = True
         n = 0
         while ramp_distance:
             n += 1
+            if stop-n < 0:
+                break
             xj = self.base_wp[stop-n].pose.pose.position.x
             yj = self.base_wp[stop-n].pose.pose.position.y
             zj = self.base_wp[stop-n].pose.pose.position.z
