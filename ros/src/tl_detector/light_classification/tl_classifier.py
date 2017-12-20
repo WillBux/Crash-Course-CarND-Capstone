@@ -8,15 +8,16 @@ import sys
 import tensorflow as tf
 from io import StringIO
 from collections import defaultdict
-PATH_TO_MODEL = 'tf_dependencies/frozen_inference_graph.pb'
+
 
 class TLClassifier(object):
     def __init__(self):
         self.detection_graph = tf.Graph()
         with self.detection_graph.as_default():
             od_graph_def = tf.GraphDef()
-            # Works up to here.
-            with tf.gfile.GFile(PATH_TO_MODEL, 'rb') as fid:
+            curr_dir = os.path.dirname(os.path.realpath(__file__))
+            model = curr_dir + '/tf_dependencies/frozen_inference_graph.pb'
+            with tf.gfile.GFile(model, 'rb') as fid:
                 serialized_graph = fid.read()
                 od_graph_def.ParseFromString(serialized_graph)
                 tf.import_graph_def(od_graph_def, name='')
@@ -39,9 +40,7 @@ class TLClassifier(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-
-        try:
-            with self.detection_graph.as_default():
+        with self.detection_graph.as_default():
             # Expand dimension since the model expects image to have shape [1, None, None, 3].
             img_expanded = np.expand_dims(img, axis=0)
             (boxes, scores, classes, num) = self.sess.run(
@@ -62,5 +61,3 @@ class TLClassifier(object):
                     return TrafficLight.RED
             else:
                 return TrafficLight.UNKNOWN
-        except:
-            return TrafficLight.UNKNOWN
