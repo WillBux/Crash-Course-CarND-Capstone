@@ -46,106 +46,98 @@ class DBWNode(object):
         max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
         max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
 
-        self.dbw_status = False
-        self.twist_cmd = None
+        self.dbw_enabled = True
         self.lx_target = 0.0
         self.az_target = 0.0
-        self.current_vel = None
         self.lx_current = 0.0
         self.az_current = 0.0
+        self.current_angle = 0.0
 
-        self.start_time = rospy.get_time()
+        self.last_timestamp = rospy.rostime.get_time()
 
-        self.logfile = "/home/student/PROJECT/Crash-Course-CarND-Capstone/data/dbw.log"
+        self.steer_pub = rospy.Publisher('/vehicle/steering_cmd', SteeringCmd, queue_size=1)
+        self.throttle_pub = rospy.Publisher('/vehicle/throttle_cmd', ThrottleCmd, queue_size=1)
+        self.brake_pub = rospy.Publisher('/vehicle/brake_cmd', BrakeCmd, queue_size=1)
 
-
-        self.steer_pub = rospy.Publisher('/vehicle/steering_cmd',
-                                         SteeringCmd, queue_size=1)
-        self.throttle_pub = rospy.Publisher('/vehicle/throttle_cmd',
-                                            ThrottleCmd, queue_size=1)
-        self.brake_pub = rospy.Publisher('/vehicle/brake_cmd',
-                                         BrakeCmd, queue_size=1)
-
-        # TODO: Create `TwistController` object
         min_speed = 0.0
         self.controller = Controller(wheel_base=wheel_base,
                                      steer_ratio=steer_ratio,
                                      min_speed=min_speed,
                                      max_lat_accel=max_lat_accel,
-                                     max_steer_angle=max_steer_angle)
+                                     max_steer_angle=max_steer_angle,
+                                     accel_limit=accel_limit,
+                                     decel_limit=decel_limit,
+                                     brake_deadband=brake_deadband,
+                                     wheel_radius=wheel_radius,
+                                     vehicle_mass=vehicle_mass)
 
-        # TODO: Subscribe to all the topics you need to
         rospy.Subscriber('/current_velocity', TwistStamped, self.curr_vel_cb, queue_size=1)
         rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb, queue_size=1)
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_cb, queue_size=1)
+        rospy.Subscriber('/vehicle/steering_report', SteeringReport, self.current_angle_cb, queue_size=1)
 
         # Open file to log commands
-        with open(self.logfile,"w") as f:
-            f.write("Time, Lx-target, Lx-actual, Az-target, Az-actual, Throttle, Brake, Steer\n")
+        # with open(self.logfile,"w") as f:
+        #     f.write("Time, Lx-target, Lx-actual, Az-target, Az-actual, Throttle, Brake, Steer\n")
 
         self.loop()
 
-    # ============================================================
     def dbw_cb(self, msg):
-        self.dbw_status = msg
         rospy.loginfo("DBW STATUS = {}".format(msg))
-        pass
+        self.dbw_enabled = bool(msg.data)
 
-    # ============================================================
     def curr_vel_cb(self, msg):
-        self.current_vel = msg
         self.lx_current = msg.twist.linear.x
         self.az_current = msg.twist.angular.z
 
-    # ============================================================
     def twist_cmd_cb(self, msg):
-        self.twist_cmd = msg
-        self.lx_target = msg.twist.linear.x
+        self.lx_target = math.fabs(msg.twist.linear.x)
         self.az_target = msg.twist.angular.z
 
-    # ============================================================
+    def current_angle_cb(self, msg):
+        self.current_angle = msg.steering_wheel_angle_cmd
+
     def loop(self):
-        rate = rospy.Rate(50) # 50Hz
+        rate = rospy.Rate(50)
         while not rospy.is_shutdown():
 
-            params = {'lx_target': abs(self.lx_target),
+            now = rospy.rostime.get_time()
+            time_elapsed = now - self.last_timestamp
+            self.last_timestamp = now
+
+            params = {'lx_target': self.lx_target,
                       'az_target': self.az_target,
                       'lx_current': self.lx_current,
-                      'az_current': self.az_current }
+                      'az_current': self.az_current,
+                      'dbw_enabled': self.dbw_enabled,
+                      'current_steering_angle': self.current_angle,
+                      'time_elapsed': time_elapsed}
 
-            if self.dbw_status:
-                throttle, brake, steering = self.controller.control(**params)
+            throttle, brake, steering = self.controller.control(**params)
 
-                # Log to file for processing
-                elapsed = rospy.get_time() - self.start_time
-                with open(self.logfile,"a") as f:
-                    f.write("{}, {}, {}, {}, {}, {}, {}, {}\n".format(
-                        elapsed, self.lx_target, self.lx_current,
-                        self.az_target, self.az_current, throttle, brake, steering))
-
+            if self.dbw_enabled:
                 self.publish(throttle, brake, steering)
 
             rate.sleep()
 
-    # ============================================================
     def publish(self, throttle, brake, steer):
+        # if throttle > .0:
         tcmd = ThrottleCmd()
         tcmd.enable = True
         tcmd.pedal_cmd_type = ThrottleCmd.CMD_PERCENT
         tcmd.pedal_cmd = throttle
         self.throttle_pub.publish(tcmd)
-
-        scmd = SteeringCmd()
-        scmd.enable = True
-        scmd.steering_wheel_angle_cmd = steer
-        self.steer_pub.publish(scmd)
-
+        # elif brake > .0:
         bcmd = BrakeCmd()
         bcmd.enable = True
         bcmd.pedal_cmd_type = BrakeCmd.CMD_TORQUE
         bcmd.pedal_cmd = brake
         self.brake_pub.publish(bcmd)
 
+        scmd = SteeringCmd()
+        scmd.enable = True
+        scmd.steering_wheel_angle_cmd = steer
+        self.steer_pub.publish(scmd)
 
 if __name__ == '__main__':
     DBWNode()
