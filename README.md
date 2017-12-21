@@ -6,17 +6,17 @@ In this project, we write ROS nodes to implement core functionality of the auton
 
 
 ## Project Team
-Will Buxton
-Badri Hiriyur
-Bharat Bobba
-Stas Olekhnovich
+Will Buxton    
+Badri Hiriyur    
+Bharat Bobba     
+Stas Olekhnovich    
 Atul Aggarwal
 
 ## ROS Nodes
 
 The following is a system architecture diagram showing the ROS nodes and topics used in the project.
 
-![system graph[image1]
+![system graph][image1]
 
 
 ### Waypoint Updater
