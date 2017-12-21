@@ -12,7 +12,7 @@ import cv2
 import yaml
 from math import sqrt
 
-STATE_COUNT_THRESHOLD = 20
+STATE_COUNT_THRESHOLD = 3
 
 class TLDetector(object):
     def __init__(self):
