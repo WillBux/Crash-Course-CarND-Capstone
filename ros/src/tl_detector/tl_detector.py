@@ -274,8 +274,8 @@ class TLDetector(object):
         ##else:
         ##    # Just started red
         ##    self.last_red_time = rospy.get_time()
-        tl_colors = ['GREEN', 'YELLOW', 'RED', 'UNKNOWN']
-        rospy.loginfo("STATE: {} COLOR = {}".format(state, tl_colors[state-1]))
+        tl_colors = ['RED', 'YELLOW', 'GREEN', 'UNKNOWN', 'UNKNOWN']
+        rospy.loginfo("STATE: {} COLOR = {}".format(state, tl_colors[state]))        
 
         self.last_light = state
         self.last_stop_wp = stop_wp
