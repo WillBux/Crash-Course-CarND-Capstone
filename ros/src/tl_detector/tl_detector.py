@@ -253,29 +253,29 @@ class TLDetector(object):
 
         state = self.get_light_state(self.lights[light_idx])
 
-        # ========================================================================
-        # Update last red time if we are at a new light
-        if stop_wp != self.last_stop_wp:
-            state = TrafficLight.RED
-            self.last_red_time = rospy.get_time()
-            new_signal = True
-        else:
-            state = self.last_light
-
-        # Check if we are continuing from red or just started
-        if self.last_light == TrafficLight.RED:
-            # Continuing from red
-            self.red_elapsed = rospy.get_time() - self.last_red_time
-
-            # Turn green if we have stayed on red long enough
-            if self.red_elapsed > 15.0:
-                state = TrafficLight.GREEN
-
-        else:
-            # Just started red
-            self.last_red_time = rospy.get_time()
-
-        rospy.loginfo("STATE: {} ELAPSED = {}".format(state, self.red_elapsed))
+        ### ========================================================================
+        ### Update last red time if we are at a new light
+        ##if stop_wp != self.last_stop_wp:
+        ##    state = TrafficLight.RED
+        ##    self.last_red_time = rospy.get_time()
+        ##    new_signal = True
+        ##else:
+        ##    state = self.last_light
+        ##
+        ### Check if we are continuing from red or just started
+        ##if self.last_light == TrafficLight.RED:
+        ##    # Continuing from red
+        ##    self.red_elapsed = rospy.get_time() - self.last_red_time
+        ##
+        ##    # Turn green if we have stayed on red long enough
+        ##    if self.red_elapsed > 15.0:
+        ##        state = TrafficLight.GREEN
+        ##
+        ##else:
+        ##    # Just started red
+        ##    self.last_red_time = rospy.get_time()
+        tl_colors = ['GREEN', 'YELLOW', 'RED', 'UNKNOWN']
+        rospy.loginfo("STATE: {} COLOR = {}".format(state, tl_colors[state-1]))
 
         self.last_light = state
         self.last_stop_wp = stop_wp
