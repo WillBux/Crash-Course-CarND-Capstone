@@ -7,16 +7,22 @@ import os
 import sys
 import tensorflow as tf
 from io import StringIO
+from tf_dependencies import label_map_util
 from collections import defaultdict
 
 
 class TLClassifier(object):
     def __init__(self):
+        curr_dir = os.path.dirname(os.path.realpath(__file__))
+        model = curr_dir + '/tf_dependencies/frozen_inference_graph.pb'
+        labels = curr_dir + '/tf_dependencies/label_map.pbtxt'
+        label_map = label_map_util.load_labelmap(labels)
+        categories = label_map_util.convert_label_map_to_categories(label_map, max_num_classes=14,
+                                                                    use_display_name=True)
+        self.category_index = label_map_util.create_category_index(categories)
         self.detection_graph = tf.Graph()
         with self.detection_graph.as_default():
             od_graph_def = tf.GraphDef()
-            curr_dir = os.path.dirname(os.path.realpath(__file__))
-            model = curr_dir + '/tf_dependencies/frozen_inference_graph.pb'
             with tf.gfile.GFile(model, 'rb') as fid:
                 serialized_graph = fid.read()
                 od_graph_def.ParseFromString(serialized_graph)
@@ -38,10 +44,11 @@ class TLClassifier(object):
 
         Returns:
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
-
         """
+
         with self.detection_graph.as_default():
             # Expand dimension since the model expects image to have shape [1, None, None, 3].
+            min_score = 0.5
             img_expanded = np.expand_dims(img, axis=0)
             (boxes, scores, classes, num) = self.sess.run(
                 [self.detection_boxes, self.detection_scores, self.detection_classes, self.num_detections],
@@ -51,13 +58,18 @@ class TLClassifier(object):
             scores = np.squeeze(scores)
             classes = np.squeeze(classes).astype(np.int32)
 
-            min_score_threshold = 0.5
-            if scores[0] > min_score_threshold:
-                if classes[0] == 1:
-                    return TrafficLight.GREEN
-                elif classes[0] == 2:
-                    return TrafficLight.YELLOW
-                elif classes[0] == 3:
-                    return TrafficLight.RED
-            else:
-                return TrafficLight.UNKNOWN
+            for i in range(boxes.shape[0]):
+                if scores[i] > min_score:
+                    class_name = self.category_index[classes[i]]['name']
+                    if class_name == 'Green':
+                        rospy.loginfo('Color Detected: Green')
+                        return TrafficLight.GREEN
+                    elif class_name == 'Yellow':
+                        rospy.loginfo('Color Detected: Yellow')
+                        return TrafficLight.YELLOW
+                    elif class_name == 'Red':
+                        rospy.loginfo('Color Detected: Red')
+                        return TrafficLight.RED
+                else:
+                    return TrafficLight.UNKNOWN
+                    rospy.loginfo('Color Detected: Unknown')
