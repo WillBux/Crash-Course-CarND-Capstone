@@ -7,7 +7,7 @@ import os
 import sys
 import tensorflow as tf
 from io import StringIO
-from tf_dependencies import label_map_util
+from light_classification.tf_dependencies import label_map_util
 from collections import defaultdict
 
 
