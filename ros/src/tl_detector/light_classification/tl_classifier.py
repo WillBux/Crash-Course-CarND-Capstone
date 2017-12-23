@@ -13,12 +13,14 @@ from collections import defaultdict
 
 class TLClassifier(object):
     def __init__(self):
+        # Setting Paths for Model and Labels
         curr_dir = os.path.dirname(os.path.realpath(__file__))
         model = curr_dir + '/tf_dependencies/frozen_inference_graph.pb'
         labels = curr_dir + '/tf_dependencies/label_map.pbtxt'
         label_map = label_map_util.load_labelmap(labels)
         categories = label_map_util.convert_label_map_to_categories(label_map, max_num_classes=14,
                                                                     use_display_name=True)
+        # Based on Tensorflow Object Detection API
         self.category_index = label_map_util.create_category_index(categories)
         self.detection_graph = tf.Graph()
         with self.detection_graph.as_default():
