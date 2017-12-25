@@ -8,13 +8,15 @@ from lowpass import LowPassFilter
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
 
-STEERING_CONTROLLER_KP = 1.2
+STEERING_CONTROLLER_KP = 0.8
 STEERING_CONTROLLER_KI = .0
-STEERING_CONTROLLER_KD = .2
+STEERING_CONTROLLER_KD = .16
 
-THROTTLE_CONTROLLER_KP = .55
+THROTTLE_CONTROLLER_KP = .3
 THROTTLE_CONTROLLER_KI = .0
-THROTTLE_CONTROLLER_KD = .1
+THROTTLE_CONTROLLER_KD = .01
+
+COMPLETE_STOP_TARGET_SPEED_VALUE = 0.35
 
 class Controller(object):
     def __init__(self, *args, **kwargs):
@@ -59,7 +61,10 @@ class Controller(object):
     def get_throttle_and_brakes(self, lx_target, lx_current, time_elapsed):
         error = lx_target - lx_current
         throttle = self.throttle_pid_controller.step(error, time_elapsed)
-        # print("SPEED: Carget: {}, Current: {},  Error: {}, Control: {}".format(lx_target, lx_current, error, throttle))
+        print("SPEED: Carget: {}, Current: {},  Error: {}, Control: {}".format(lx_target, lx_current, error, throttle))
+
+        if lx_target < COMPLETE_STOP_TARGET_SPEED_VALUE:
+            return 0.0, self.throttle_to_brake_torque(-1.0)
 
         if throttle > 0.0:
             return min(throttle, self.accel_limit), 0.0
@@ -78,7 +83,7 @@ class Controller(object):
         lx_current = kwargs['lx_current']
         az_current = kwargs['az_current']
 
-        # print(lx_target, lx_current)
+        # print(lx_target)
 
         dbw_enabled = kwargs['dbw_enabled']
         time_elapsed = kwargs['time_elapsed']
@@ -87,7 +92,7 @@ class Controller(object):
         lx_target = self.low_pass_filter_lin_vel_target.filt(lx_target)
         az_target = self.low_pass_filter_ang_vel_target.filt(az_target)
 
-        MIN_SPEED_WHEN_STEERING_MAKES_SENSE = 2.0
+        MIN_SPEED_WHEN_STEERING_MAKES_SENSE = 4.0
 
         if dbw_enabled:
             if lx_current > MIN_SPEED_WHEN_STEERING_MAKES_SENSE:
