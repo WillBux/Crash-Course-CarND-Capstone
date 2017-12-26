@@ -12,7 +12,9 @@ import cv2
 import yaml
 from math import sqrt
 
-STATE_COUNT_THRESHOLD = 3
+# Since the traffic light classifier takes time to process, we need to
+# lower the threshold a bit
+STATE_COUNT_THRESHOLD = 2
 
 class TLDetector(object):
     def __init__(self):
