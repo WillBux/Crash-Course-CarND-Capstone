@@ -49,7 +49,7 @@ class Controller(object):
                                            mx=kwargs['max_steer_angle'])
 
         # Set to None to disable dbw log
-        self.log_dbw = 'dbw.log'
+        self.log_dbw = None #'dbw.log'
         self.log_init = rospy.get_time()
         if self.log_dbw:
             with open(self.log_dbw,'w') as f:
@@ -67,7 +67,6 @@ class Controller(object):
     def get_throttle_and_brakes(self, lx_target, lx_current, time_elapsed):
         error = lx_target - lx_current
         throttle = self.throttle_pid_controller.step(error, time_elapsed)
-        # print("SPEED: Carget: {}, Current: {},  Error: {}, Control: {}".format(lx_target, lx_current, error, throttle))
 
         if lx_target < COMPLETE_STOP_TARGET_SPEED_VALUE:
             return 0.0, self.throttle_to_brake_torque(-2.0)

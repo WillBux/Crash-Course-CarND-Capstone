@@ -10,6 +10,7 @@ from io import StringIO
 from light_classification.tf_dependencies import label_map_util
 from collections import defaultdict
 
+DEBUG = False
 
 class TLClassifier(object):
     def __init__(self):
@@ -64,14 +65,18 @@ class TLClassifier(object):
                 if scores[i] > min_score:
                     class_name = self.category_index[classes[i]]['name']
                     if class_name == 'Green':
-                        rospy.loginfo('Color Detected: Green')
+                        if DEBUG:
+                            rospy.loginfo('Color Detected: Green')
                         return TrafficLight.GREEN
                     elif class_name == 'Yellow':
-                        rospy.loginfo('Color Detected: Yellow')
+                        if DEBUG:
+                            rospy.loginfo('Color Detected: Yellow')
                         return TrafficLight.YELLOW
                     elif class_name == 'Red':
-                        rospy.loginfo('Color Detected: Red')
+                        if DEBUG:
+                            rospy.loginfo('Color Detected: Red')
                         return TrafficLight.RED
                 else:
                     return TrafficLight.UNKNOWN
-                    rospy.loginfo('Color Detected: Unknown')
+                    if DEBUG:
+                        rospy.loginfo('Color Detected: Unknown')

@@ -16,7 +16,7 @@ from math import sqrt
 # lower the threshold a bit
 STATE_COUNT_THRESHOLD = 2
 
-DEBUG = True
+DEBUG = False
 
 class TLDetector(object):
     def __init__(self):
