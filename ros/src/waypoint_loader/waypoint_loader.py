@@ -30,7 +30,7 @@ class WaypointLoader(object):
         if os.path.isfile(path):
             waypoints = self.load_waypoints(path)
             self.publish(waypoints)
-            rospy.loginfo('Waypoint Loded')
+            rospy.loginfo('Waypoint Loaded @ vel = {} mps'.format(self.velocity))
         else:
             rospy.logerr('%s is not a file', path)
 
@@ -54,7 +54,7 @@ class WaypointLoader(object):
                 p.twist.twist.linear.x = float(self.velocity)
 
                 waypoints.append(p)
-        return self.decelerate(waypoints)
+        return waypoints
 
     def distance(self, p1, p2):
         x, y, z = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
