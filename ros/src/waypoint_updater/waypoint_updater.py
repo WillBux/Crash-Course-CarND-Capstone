@@ -35,8 +35,8 @@ class WaypointUpdater(object):
         self.wp_vels      = None        # List of velocity targets for each wp
         self.wp_last      = None        # List of waypoints publishes last time (to limit search)
         self.wp_num       = 0           # Number of base waypoints
-        self.max_vel      = 17.8 / 2.0        # Maximum speed on the track [meters/sec] (40 Mph)
-        self.stop_dist    = 100.0         # Stopping distance (from max_vel to 0)
+        self.max_vel      = 17.8        # Maximum speed on the track [meters/sec] (40 Mph)
+        self.stop_dist    = 100.0       # Stopping distance (from max_vel to 0)
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
@@ -65,6 +65,13 @@ class WaypointUpdater(object):
     # ============================================================
     def waypoints_cb(self, wp):
         # Callback for base waypoints. Let's just store in class
+
+        # Set the maximum velocity for track based on receommended
+        # speed from waypoint loader. Will automatically reset to
+        # 10 mph for chuchlots site
+        self.max_val = wp.waypoints[0].twist.twist.linear.x
+        rospy.loginfo("Maximum track speed set to {}".format(self.max_vel))
+
         self.base_wp = wp.waypoints
         self.wp_num = len(wp.waypoints)
         self.set_max_vel()
