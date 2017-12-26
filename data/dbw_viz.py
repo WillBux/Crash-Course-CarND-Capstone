@@ -3,20 +3,28 @@ import numpy as np
 
 def viz():
     # Load the data
-    data = np.loadtxt('dbw.log', delimiter=',', skiprows=1)
+    data = np.loadtxt('/home/student/.ros/dbw.log', delimiter=',', skiprows=1)
+    time       = data[:,0]
+    throttle   = data[:,1]
+    brake      = data[:,2]
+    steering   = data[:,3]
+    lx_target  = data[:,4]
+    lx_current = data[:,5]
+    az_target  = data[:,6]
+    az_current = data[:,7]
     print(data.shape)
     plt.figure()
     plt.subplot(2,2,1)
-    plt.plot(data[:,0], data[:,1], 'b', label='lx_target')
-    plt.plot(data[:,0], np.abs(data[:,2]), 'r', label='lx_actual')
+    plt.plot(time, lx_target, 'b', label='lx_target')
+    plt.plot(time, lx_current, 'r', label='lx_actual')
     plt.grid()
     plt.legend(loc='best')
     plt.xlabel('Time')
     plt.ylabel('Vel (m/s)')
 
     plt.subplot(2,2,2)
-    plt.plot(data[:,0], data[:,3], 'b', label='az_target')
-    plt.plot(data[:,0], data[:,4], 'r', label='az_actual')
+    plt.plot(time, az_target, 'b', label='az_target')
+    plt.plot(time, az_current, 'r', label='az_actual')
     plt.ylim((-6.5, 6.5))
     plt.grid()    
     plt.legend(loc='best')
@@ -24,8 +32,8 @@ def viz():
     plt.ylabel('Ang-vel (r/s)')
 
     plt.subplot(2,2,3)
-    plt.plot(data[:,0], data[:,5], 'g.', label='Throttle')
-    plt.plot(data[:,0], data[:,6]/100, 'rs', label='Brake/100')
+    plt.plot(time, throttle, 'g.', label='Throttle')
+    plt.plot(time, brake/100, 'rs', label='Brake/100')
     plt.ylim((-1, 2))
     plt.legend(loc='best')    
     plt.grid()
@@ -33,7 +41,7 @@ def viz():
     plt.ylabel('Throttle/Brake')
 
     plt.subplot(2,2,4)
-    plt.plot(data[:,0], data[:,7], 'r', label='Steer')
+    plt.plot(time, steering, 'r', label='Steer')
     plt.ylim((-3, 3))
     plt.grid()
     plt.xlabel('Time')

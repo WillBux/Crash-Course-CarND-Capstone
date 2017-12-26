@@ -48,20 +48,26 @@ class Controller(object):
                                            mn=-kwargs['max_steer_angle'],
                                            mx=kwargs['max_steer_angle'])
 
-    def get_steering_angle(self, lx_target, az_target, lx_current, az_current, time_elapsed, current_steering_angle):
+        # Set to None to disable dbw log
+        self.log_dbw = 'dbw.log'
+        self.log_init = rospy.get_time()
+        if self.log_dbw:
+            with open(self.log_dbw,'w') as f:
+                f.write("Time, Throttle, Brake, Steering, LX_taget, LX_current, AZ_target, AZ_current\n")
+
+
+    def get_steering_angle(self, lx_target, az_target, lx_current, az_current,
+                           time_elapsed, current_steering_angle):
         target_steering_angle = self.yaw_controller.get_steering(lx_target, az_target, lx_current)
         steering_error = target_steering_angle - current_steering_angle
         steer = self.steering_pid_controller.step(steering_error, time_elapsed)
 
-        # steer = self.low_pass_filter_steering.filt(steer)
-        # print("STEER: Target: {}, Current: {},  Error: {}, Control: {}".format(target_steering_angle, current_steering_angle,
-        #                                                                             steering_error, steer))
         return steer
 
     def get_throttle_and_brakes(self, lx_target, lx_current, time_elapsed):
         error = lx_target - lx_current
         throttle = self.throttle_pid_controller.step(error, time_elapsed)
-        print("SPEED: Carget: {}, Current: {},  Error: {}, Control: {}".format(lx_target, lx_current, error, throttle))
+        # print("SPEED: Carget: {}, Current: {},  Error: {}, Control: {}".format(lx_target, lx_current, error, throttle))
 
         if lx_target < COMPLETE_STOP_TARGET_SPEED_VALUE:
             return 0.0, self.throttle_to_brake_torque(-1.0)
@@ -103,6 +109,11 @@ class Controller(object):
             self.last_steering_angle = steering_angle
 
             throttle, brakes = self.get_throttle_and_brakes(lx_target, lx_current, time_elapsed)
+
+            if self.log_dbw:
+                with open(self.log_dbw,'a') as f:
+                     current_time = rospy.get_time() - self.log_init
+                     f.write("{}, {}, {}, {}, {}, {}, {}, {}\n".format(current_time, throttle, brakes, steering_angle, lx_target, lx_current, az_target, az_current))
 
             return throttle, brakes, steering_angle
         else:
