@@ -19,7 +19,7 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
 LOOKAHEAD_WPS = 100 # Number of waypoints we will publish. You can change this number
-
+MAX_DECEL = 1.0
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -35,7 +35,6 @@ class WaypointUpdater(object):
         self.wp_vels      = None        # List of velocity targets for each wp
         self.wp_last      = None        # List of waypoints publishes last time (to limit search)
         self.wp_num       = 0           # Number of base waypoints
-        self.max_vel      = 17.8        # Maximum speed on the track [meters/sec] (40 Mph)
         self.stop_dist    = 100.0       # Stopping distance (from max_vel to 0)
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
@@ -69,8 +68,8 @@ class WaypointUpdater(object):
         # Set the maximum velocity for track based on receommended
         # speed from waypoint loader. Will automatically reset to
         # 10 mph for chuchlots site
-        self.max_val = wp.waypoints[0].twist.twist.linear.x
-        rospy.loginfo("Maximum track speed set to {}".format(self.max_vel))
+        self.max_vel = wp.waypoints[0].twist.twist.linear.x * 1.60934
+        rospy.loginfo("Maximum track speed set to {} mps".format(self.max_vel))
 
         self.base_wp = wp.waypoints
         self.wp_num = len(wp.waypoints)
@@ -108,9 +107,8 @@ class WaypointUpdater(object):
 
             dij = math.sqrt( (xi-xj)**2 + (yi-yj)**2 + (zi-zj)**2 )
 
-            if n > 1:
-                ramp_vel = self.max_vel * min(dij/self.stop_dist, 1.0)
-            else:
+            ramp_vel = self.max_vel * min(1.0, dij/self.stop_dist)
+            if ramp_vel < 1.0:
                 ramp_vel = 0.0
 
             # Set velocity behind the stop line to ramp velocity
@@ -186,8 +184,6 @@ class WaypointUpdater(object):
         success = self.wp_distances()
         if not success:
             return
-
-        max_vel = 11.0
 
         # Construct a lane message
         msg = Lane()
