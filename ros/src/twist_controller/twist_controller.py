@@ -70,7 +70,7 @@ class Controller(object):
         # print("SPEED: Carget: {}, Current: {},  Error: {}, Control: {}".format(lx_target, lx_current, error, throttle))
 
         if lx_target < COMPLETE_STOP_TARGET_SPEED_VALUE:
-            return 0.0, self.throttle_to_brake_torque(-1.0)
+            return 0.0, self.throttle_to_brake_torque(-2.0)
 
         if throttle > 0.0:
             return min(throttle, self.accel_limit), 0.0
