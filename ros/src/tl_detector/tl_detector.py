@@ -29,7 +29,7 @@ class TLDetector(object):
         self.last_wp = -1
         self.state_count = 0
 
-        self.sight_distance = 200    # Let's say we can only see some distance ahead
+        self.sight_distance = 300    # Let's say we can only see some distance ahead
         self.stop_waypoints = []
 
         self.save_images = False
