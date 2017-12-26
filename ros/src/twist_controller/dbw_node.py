@@ -98,7 +98,7 @@ class DBWNode(object):
         self.current_angle = msg.steering_wheel_angle_cmd
 
     def loop(self):
-        rate = rospy.Rate(10)
+        rate = rospy.Rate(50)
         while not rospy.is_shutdown():
 
             now = rospy.rostime.get_time()
