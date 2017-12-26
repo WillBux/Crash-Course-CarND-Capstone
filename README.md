@@ -6,11 +6,11 @@ In this project, we write ROS nodes to implement core functionality of the auton
 
 
 ## Project Team
-Will Buxton    
-Badri Hiriyur    
-Bharat Bobba     
-Stas Olekhnovich    
-Atul Aggarwal
+- Atul Aggarwal (atul.unicode@gmail.com)
+- Bharat Bobba (bharatbobba@gmail.com)
+- Will Buxton (will.buxton88@gmail.com)
+- Badri Hiriyur (bhiriyur@gmail.com)
+- Stas Olekhnovich (stas.olechnovich@gmail.com)
 
 ## ROS Nodes
 
@@ -20,8 +20,17 @@ The following is a system architecture diagram showing the ROS nodes and topics 
 
 
 ### Waypoint Updater
-The purpose of this node is to publish a fixed number of waypoints ahead of the vehicle with the correct target velocities, depending on traffic lights and obstacles.
+The purpose of this node is to publish a fixed number of waypoints ahead of the vehicle with the correct target velocities, depending on traffic lights and obstacles. This node subscribes to the following messages:
 
+- /base_waypoints (Lane)
+- /current_pose (PoseStamped)
+- /traffic_waypoint (Int32)
+
+This node publishes the following message:
+
+- /final_waypoints (Lane)
+
+The /final_waypoints message is built from the base waypoints with the first one being the closest to the /current_pose and thereafter in increasing order. The target velocity for the track is set from the base waypoints that are loaded in (through the `velocity` parameter). This node uses a vector of target velocities for all waypoints. This target velocity is first set to the maximum track velocity for all waypoints by default. Then the velocity is updated if the /traffic_waypoint callback is called. In this case, the velocity is set to zero at the reported stop line (the Int32 message in /traffic_waypoint) and then ramped up in a linear fashion as the distance increases behind the stop line. The velocity ahead of the stop line is set to zero.
 
 ### Traffic Light Dectector & Classifier
 This node publishes the index of the waypoint for nearest upcoming red light's stop line to a single topic /traffic_waypoint.
