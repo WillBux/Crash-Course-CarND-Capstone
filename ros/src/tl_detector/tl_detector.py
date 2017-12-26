@@ -16,6 +16,8 @@ from math import sqrt
 # lower the threshold a bit
 STATE_COUNT_THRESHOLD = 2
 
+DEBUG = True
+
 class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
@@ -92,7 +94,8 @@ class TLDetector(object):
                     max_dist = dij
                     closest = idx
 
-            rospy.loginfo("ASSOCIATED WP = {} at {}".format(closest, max_dist))
+            if DEBUG:
+                rospy.loginfo("ASSOCIATED WP = {} at {}".format(closest, max_dist))
             self.stop_waypoints.append(closest)
 
     # ========================================================================
@@ -121,11 +124,17 @@ class TLDetector(object):
         if self.state != state:
             self.state_count = 0
             self.state = state
+
         elif self.state_count >= STATE_COUNT_THRESHOLD:
             self.last_state = self.state
             light_wp = light_wp if state == TrafficLight.RED else -1
             self.last_wp = light_wp
             self.upcoming_red_light_pub.publish(Int32(light_wp))
+
+            if DEBUG and state < 3:
+                tl_colors = ['RED', 'YELLOW', 'GREEN', 'UNKNOWN', 'UNKNOWN']
+                rospy.loginfo("TL DETECTED: {} COLOR = {}".format(state, tl_colors[state]))
+
         else:
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
         self.state_count += 1
@@ -275,8 +284,6 @@ class TLDetector(object):
         ##else:
         ##    # Just started red
         ##    self.last_red_time = rospy.get_time()
-        tl_colors = ['RED', 'YELLOW', 'GREEN', 'UNKNOWN', 'UNKNOWN']
-        rospy.loginfo("STATE: {} COLOR = {}".format(state, tl_colors[state]))        
 
         self.last_light = state
         self.last_stop_wp = stop_wp
