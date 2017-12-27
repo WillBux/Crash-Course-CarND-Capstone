@@ -108,8 +108,8 @@ class WaypointUpdater(object):
             dij = math.sqrt( (xi-xj)**2 + (yi-yj)**2 + (zi-zj)**2 )
 
             ramp_vel = self.max_vel * min(1.0, dij/self.stop_dist)
-            if ramp_vel < 1.0:
-                ramp_vel = 0.0
+            #if ramp_vel < 1.0:
+            #    ramp_vel = 0.0
 
             # Set velocity behind the stop line to ramp velocity
             self.wp_vels[stop - n] = ramp_vel
