@@ -97,7 +97,7 @@ class Controller(object):
         lx_target = self.low_pass_filter_lin_vel_target.filt(lx_target)
         az_target = self.low_pass_filter_ang_vel_target.filt(az_target)
 
-        MIN_SPEED_WHEN_STEERING_MAKES_SENSE = 4.0
+        MIN_SPEED_WHEN_STEERING_MAKES_SENSE = 0.35
 
         if dbw_enabled:
             if lx_current > MIN_SPEED_WHEN_STEERING_MAKES_SENSE:
