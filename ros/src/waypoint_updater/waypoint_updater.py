@@ -68,7 +68,7 @@ class WaypointUpdater(object):
         # Set the maximum velocity for track based on receommended
         # speed from waypoint loader. Will automatically reset to
         # 10 mph for chuchlots site
-        self.max_vel = wp.waypoints[0].twist.twist.linear.x * 1.60934
+        self.max_vel = wp.waypoints[0].twist.twist.linear.x * 3.08561
         rospy.loginfo("Maximum track speed set to {} mps".format(self.max_vel))
 
         self.base_wp = wp.waypoints
